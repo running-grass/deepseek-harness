@@ -15,13 +15,15 @@ import {
 } from '../src/client/index.ts'
 
 type Win = {
-  location?: { hostname: string; origin?: string }
+  location?: { hostname: string; host?: string; origin?: string }
   __DSH_TRANSPORT__?: ClientTransportHooks
+  __DSH_TRUSTED_HOSTS__?: unknown
 }
 
 afterEach(() => {
   delete (globalThis as Win).location
   delete (globalThis as Win).__DSH_TRANSPORT__
+  delete (globalThis as Win).__DSH_TRUSTED_HOSTS__
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
@@ -131,6 +133,18 @@ describe('connection client apply', () => {
 
   it('reports non-loopback page authority through the connection handle', async () => {
     ;(globalThis as Win).location = { hostname: '192.0.2.20' }
+    expect((await mount()).isLoopback).toBe(false)
+  })
+
+  it('classifies a declared trusted page authority as local', async () => {
+    ;(globalThis as Win).location = { hostname: 'galaxy', host: 'galaxy:13080' }
+    ;(globalThis as Win).__DSH_TRUSTED_HOSTS__ = ['galaxy:13080', '192.168.1.5']
+    expect((await mount()).isLoopback).toBe(true)
+  })
+
+  it('keeps an undeclared authority remote and ignores a malformed trusted list', async () => {
+    ;(globalThis as Win).location = { hostname: 'galaxy', host: 'galaxy:13080' }
+    ;(globalThis as Win).__DSH_TRUSTED_HOSTS__ = 'galaxy:13080'
     expect((await mount()).isLoopback).toBe(false)
   })
 

@@ -205,6 +205,19 @@ describe('connection node half', () => {
     }
   })
 
+  it('injects the declared trusted authorities for the browser trust classification', async () => {
+    const { ctx, dispose } = await mounted({ trustedHosts: ['galaxy:13080', '192.168.1.5'] })
+    try {
+      const rows: IndexInjection[] = []
+      ctx.emit('webserver/index-inject', rows)
+      expect(rows).toContainEqual({
+        kind: 'global', name: '__DSH_TRUSTED_HOSTS__', value: ['galaxy:13080', '192.168.1.5'],
+      })
+    } finally {
+      await dispose()
+    }
+  })
+
   it.each([
     { recovery: { backoffBaseMs: 0 }, error: /backoffBaseMs/ },
     { recovery: { backoffFactor: NaN }, error: /backoffFactor.*finite/ },

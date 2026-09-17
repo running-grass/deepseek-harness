@@ -135,6 +135,12 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
     webCtx.on('webserver/index-inject', (table) => {
       table.push({ kind: 'global', name: '__DSH_CONNECTION_RECOVERY__', value: recovery })
+      // Declared non-loopback authorities the /api fence admits. The browser
+      // half reads this to classify its own page authority identically, so the
+      // privileged settings surface follows the same trust as its requests.
+      if (trustedHosts.length > 0) {
+        table.push({ kind: 'global', name: '__DSH_TRUSTED_HOSTS__', value: [...trustedHosts] })
+      }
     })
     const fetchHandler = connection.createSharedFetchHandler(API_PATH)
     const route: WebRoute = {
