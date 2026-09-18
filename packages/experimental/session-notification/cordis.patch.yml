@@ -1,0 +1,8 @@
+# Built-artifact overlay for the experimental session-notification plugin:
+#   node apps/cli/lib/bin.js web --patch ./packages/experimental/session-notification/cordis.patch.yml
+# The relative entry is anchored to this file, so the package does not need to be
+# installed into the selected profile. Run `pnpm run build` first.
+
+- insert:
+    - id: session-notification
+      name: './lib/index.js'

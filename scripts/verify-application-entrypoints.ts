@@ -51,6 +51,7 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
 const ROOT_DEMO_POLICIES = new Map<string, DemoPolicy>([
   ['demo:ptc', { kind: 'dsh-wrapper', wrapper: 'scripts/demo-ptc.mjs' }],
   ['demo:inspector', { kind: 'dsh-direct' }],
+  ['demo:session-notification', { kind: 'dsh-direct' }],
 ])
 
 const SOURCE_PATTERNS = [

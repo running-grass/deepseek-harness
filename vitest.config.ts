@@ -284,6 +284,13 @@ export default defineConfig({
         'packages/experimental/inspector/src/shared/bridge/messages/runtime/{command-codec,console-frames,frames,value-codec}.ts',
         'packages/experimental/inspector/src/shared/bridge/messages/sources/{codec,frames}.ts',
         'packages/experimental/inspector/src/worker/inspection/{cordis-store,query-router,realm-store}.ts',
+        // Session notifications: the browser half drives Web Audio playback, the
+        // Notification permission flow, and cross-tab BroadcastChannel
+        // arbitration, none of which the jsdom lane provides; its correctness
+        // signal is the assembled Web GUI.
+        // TODO(session-notification): add a jsdom lane with audio and
+        // notification stubs, then cover the engine and section and remove this.
+        'packages/experimental/session-notification/src/**/*.{ts,tsx}',
         // Web config-tree boot round: the new host-side web-transport halves
         // whose remaining branches need real-composition/process harnesses.
         // TODO(gui): cover and remove with the client test lane above.

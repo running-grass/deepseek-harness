@@ -1,0 +1,8 @@
+# Source overlay for `pnpm run demo:session-notification`. The relative entry is
+# anchored to this file and runs through the CLI's tsx loader without a profile
+# install. The row joins the browser roster, whose client bundle the modules
+# node half serves from the built lib/client.js.
+
+- insert:
+    - id: session-notification
+      name: './src/index.ts'
