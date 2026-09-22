@@ -10,6 +10,7 @@ import {
 } from './connection.ts'
 import { createWebConnectionRpc, type RpcFetch, type RpcStreamOpen } from './rpc.ts'
 import { isLoopbackHostname } from '../loopback-hostname.ts'
+import { isTrustedAuthorityHost } from '../api-request-trust.ts'
 import type { ClientConnectionRpc } from '../rpc.ts'
 import { resolveConnectionConfig } from '../recovery-config.ts'
 
@@ -110,11 +111,15 @@ export interface ClientTransportHooks {
 interface ClientTransportGlobal {
   __DSH_TRANSPORT__?: ClientTransportHooks
   __DSH_CONNECTION_RECOVERY__?: unknown
+  /** Non-loopback authorities the Host's /api fence admits (injected at boot). */
+  __DSH_TRUSTED_HOSTS__?: unknown
 }
 
 /** Browser location fields used to classify loopback authority. */
 export interface ConnectionLocation {
   readonly hostname: string
+  /** Full authority (`host:port`); present on a real `Location`, optional otherwise. */
+  readonly host?: string
 }
 
 /** Instance-local inputs for installing a Connection service. */
@@ -125,6 +130,16 @@ export interface ConnectionInstallOptions {
   readonly recovery?: ConnectionRecoveryConfig
   /** Page location; omit for a non-browser composition. */
   readonly location?: ConnectionLocation
+  /** Declared non-loopback authorities whose pages count as local (the fence's list). */
+  readonly trustedHosts?: readonly string[]
+}
+
+/** Read the boot-injected trusted-authority list, tolerating a missing or malformed global. */
+function trustedHostsGlobal(): readonly string[] {
+  const value = (globalThis as ClientTransportGlobal).__DSH_TRUSTED_HOSTS__
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : []
 }
 
 /**
@@ -206,6 +221,7 @@ export function installConnection(ctx: Context, options: ConnectionInstallOption
   const pageLocation = options.location
   const transport = options.transport
   const recovery = options.recovery ?? {}
+  const trustedHosts = options.trustedHosts ?? []
   const rpc = transport?.rpc ?? createWebConnectionRpc(transport?.fetch, transport?.openStream)
   let generationSource: ConnectionGenerationSource | undefined
   let owner: ConnectionOwner | undefined
@@ -245,7 +261,10 @@ export function installConnection(ctx: Context, options: ConnectionInstallOption
     publishState(undefined)
   }
   const handle: ConnectionHandle = {
-    isLoopback: transport?.ownsHost === true || pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    isLoopback: transport?.ownsHost === true
+      || pageLocation === undefined
+      || isLoopbackHostname(pageLocation.hostname)
+      || (pageLocation.host !== undefined && isTrustedAuthorityHost(pageLocation.host, trustedHosts)),
     generation: {
       getSnapshot: () => generation,
       subscribe: (listener) => {
@@ -318,9 +337,11 @@ export function apply(ctx: Context): void {
   const globals = globalThis as ClientTransportGlobal
   const pageLocation = typeof location === 'undefined' ? undefined : location
   const transport = globals.__DSH_TRANSPORT__
+  const trustedHosts = trustedHostsGlobal()
   installConnection(ctx, {
     ...(transport === undefined ? {} : { transport }),
     recovery: resolveConnectionConfig(globals.__DSH_CONNECTION_RECOVERY__),
     ...(pageLocation === undefined ? {} : { location: pageLocation }),
+    ...(trustedHosts.length === 0 ? {} : { trustedHosts }),
   })
 }

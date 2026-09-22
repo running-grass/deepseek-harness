@@ -383,9 +383,15 @@ export class PiAiAdapter extends LlmAdapter {
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
         signal: watchdog.signal,
-        // Profile headers are deployment-owned; attribution names are
-        // Harness-owned and therefore win collisions.
-        headers: requestHeaders(profile.headers),
+        // Profile headers are deployment-owned; attribution and session
+        // identity are Harness-owned and therefore win collisions. The
+        // session id is the header llm-deepseek already sends; OpenCode Go
+        // recognizes it for routing and prompt caching, so a request
+        // without it is rejected.
+        headers: {
+          ...requestHeaders(profile.headers),
+          ...options.sessionId === undefined ? {} : { 'x-deepseek-harness-session-id': String(options.sessionId) },
+        },
       })
       const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
       let exhausted = false

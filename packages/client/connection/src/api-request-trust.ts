@@ -83,6 +83,20 @@ function isTrustedAuthority(hostUrl: URL, trustedHosts: readonly string[]): bool
 }
 
 /**
+ * Whether a page authority (`host` or `host:port`) matches a `trustedHosts`
+ * entry, using the same normalization as the request fence. Shared with the
+ * browser half so a page served on a declared authority is classified exactly
+ * as the fence that admits its requests does.
+ * @param authority - page authority, e.g. `galaxy:13080` or `192.168.1.5`.
+ * @param trustedHosts - non-loopback authorities this deployment serves.
+ * @returns true when the authority is declared trusted.
+ */
+export function isTrustedAuthorityHost(authority: string, trustedHosts: readonly string[]): boolean {
+  const hostUrl = parseAuthority(authority)
+  return hostUrl !== undefined && isTrustedAuthority(hostUrl, trustedHosts)
+}
+
+/**
  * Decide whether one /api request may reach the RPC bridge.
  * @param request - Node HTTP or Fetch request facts (headers).
  * @param trustedHosts - non-loopback authorities this deployment serves: exact `host:port`, or port-less `host` matching any port.

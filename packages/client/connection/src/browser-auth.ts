@@ -14,6 +14,10 @@ const DAY_MILLISECONDS = 24 * 60 * 60 * 1000
 const SECRET_BYTES = 32
 const TOKEN_QUERY = 'token'
 const COOKIE_PREFIX = 'dsh-auth-'
+/** Environment variable overriding the per-process browser launch token. */
+const LAUNCH_TOKEN_ENV = 'DSH_WEB_TOKEN'
+/** Environment variable delegating browser authentication to an external reverse proxy. */
+const AUTH_DISABLED_ENV = 'DSH_WEB_DISABLE_AUTH'
 const COOKIE_PAYLOAD_VERSION = 1
 const STORED_SECRET_VERSION = 1
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]*$/
@@ -52,9 +56,18 @@ function decodeBase64Url(value: string): Buffer | undefined {
 function processLaunchToken(owner: object): string {
   const existing = PROCESS_LAUNCH_TOKENS.get(owner)
   if (existing !== undefined) return existing
-  const created = encodeBase64Url(randomBytes(SECRET_BYTES))
+  const configured = process.env[LAUNCH_TOKEN_ENV]
+  const created = configured !== undefined && configured.length > 0
+    ? configured
+    : encodeBase64Url(randomBytes(SECRET_BYTES))
   PROCESS_LAUNCH_TOKENS.set(owner, created)
   return created
+}
+
+/** Whether the built-in token/cookie gate is disabled in favor of proxy-level authentication. */
+function browserAuthDisabled(): boolean {
+  const value = process.env[AUTH_DISABLED_ENV]
+  return value !== undefined && value !== '' && value !== '0' && value !== 'false'
 }
 
 function header(
@@ -222,7 +235,7 @@ export class BrowserAuth {
    */
   authenticatedUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
-    url.searchParams.set(TOKEN_QUERY, this.launchToken)
+    if (!browserAuthDisabled()) url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
   }
 
@@ -236,6 +249,7 @@ export class BrowserAuth {
    * @returns true only when the caller may serve index.html.
    */
   authorizeIndex(req: ConnectionIndexRequest, res: ConnectionIndexResponse): boolean {
+    if (browserAuthDisabled()) return true
     /* v8 ignore next -- node:http always supplies url on server requests. */
     const url = new URL(req.url ?? '/', 'http://dsh.invalid')
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
@@ -285,6 +299,7 @@ export class BrowserAuth {
    * @returns true only for an unexpired cookie signed by this activation's loaded secret.
    */
   isAuthenticated(request: ConnectionTrustRequest): boolean {
+    if (browserAuthDisabled()) return true
     const authority = requestAuthority(request.headers)
     const rawCookie = header(request.headers, 'cookie')
     if (authority === undefined || rawCookie === undefined) return false
